@@ -111,7 +111,26 @@ namespace b2c_ms_graph
                 Console.ResetColor();
             }
         }
-        public static async Task ListUsersWithCustomAttribute(GraphServiceClient graphClient, string b2cExtensionAppClientId)
+
+        public static async Task getUserExtensions(GraphServiceClient graphServiceClient, 
+            string userID, string extensionID)
+        {
+            var extension = await graphServiceClient
+                .Users[userID]
+                .Extensions
+                .Request()
+                .GetAsync();
+
+            foreach (var item in extension.AdditionalData)
+            {
+                Console.WriteLine($"{item.Key} | {item.Value}");
+            }
+        }
+
+        public static async Task ListUsersWithCustomAttribute(
+            GraphServiceClient graphClient, 
+            string b2cExtensionAppClientId,
+            string filter=null)
         {
             if (string.IsNullOrWhiteSpace(b2cExtensionAppClientId))
             {
@@ -119,7 +138,7 @@ namespace b2c_ms_graph
             }
 
             // Declare the names of the custom attributes
-            const string customAttributeName1 = "FavouriteSeason";
+            const string customAttributeName1 = "CompanyName";
             const string customAttributeName2 = "LovesPets";
 
             // Get the complete name of the custom attribute (Azure AD extension)
@@ -138,8 +157,25 @@ namespace b2c_ms_graph
 
             foreach (var user in result.CurrentPage)
             {
-                Console.WriteLine(JsonSerializer.Serialize(user));
+                var options = new JsonSerializerOptions() { WriteIndented = true };
+                var serialized = JsonSerializer.Serialize(user, options);
+                
+                Console.WriteLine();
 
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    if (serialized.Contains(filter))
+                    {
+                        Console.WriteLine(serialized);
+                        //Console.WriteLine(" extensions now: ");
+                        //await getUserExtensions(graphClient, user.Id, "extension_410ffb2f514743f889218b061ee7f5f0_CompanyName");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(serialized);    
+                }
+                
                 // Only output the custom attributes...
                 //Console.WriteLine(JsonSerializer.Serialize(user.AdditionalData));
             }
@@ -167,7 +203,10 @@ namespace b2c_ms_graph
 
                 if (result != null)
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(result));
+                    var options = new JsonSerializerOptions() { WriteIndented = true };
+                    var serialized = JsonSerializer.Serialize(result, options);
+
+                    Console.WriteLine(serialized);
                 }
             }
             catch (Exception ex)
@@ -234,6 +273,68 @@ namespace b2c_ms_graph
                 Console.WriteLine(ex.Message);
                 Console.ResetColor();
             }
+        }
+
+        public static async Task addExtension(GraphServiceClient graphServiceClient, 
+            string userId, string extensionName, string attributeName, string extensionValue)
+        {
+            var extension = new OpenTypeExtension
+            {
+                ExtensionName = extensionName, // necessary I guess
+                AdditionalData = new Dictionary<string, object>
+                    {
+                        {attributeName, extensionValue}
+                    }
+            };
+
+            await graphServiceClient
+               .Users[userId]
+               .Extensions
+               .Request()
+               .AddAsync(extension);
+        }
+
+        public static async Task SetPropertyByUserId(GraphServiceClient graphClient)
+        {
+            Console.Write("Enter user object ID: ");
+            string userId = Console.ReadLine();
+
+            Console.Write("Enter property name: ");
+            string propertyName = Console.ReadLine();
+
+            Console.Write("Enter new value: ");
+            string propValue = Console.ReadLine();
+            
+            Console.WriteLine($"Looking for user with object ID '{userId}'...");
+            
+            // Get user by id name
+            var user = await graphClient.Users[userId]
+                .Request()
+                .GetAsync();
+            
+            //User custom attributes
+            IDictionary<string, object> extensionInstance = new Dictionary<string, object>();
+            extensionInstance.Add(propertyName, propValue);
+
+            user.AdditionalData = extensionInstance;
+
+            try
+            {
+                // Update user by object ID
+                await graphClient.Users[userId]
+                .Request()
+                .UpdateAsync(user);
+
+                Console.WriteLine($"User with object ID '{userId}' successfully updated.");
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(ex.Message);
+                Console.ResetColor();
+            }
+
+
         }
 
         public static async Task SetPasswordByUserId(GraphServiceClient graphClient)

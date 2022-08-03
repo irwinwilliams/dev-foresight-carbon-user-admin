@@ -31,6 +31,9 @@ namespace b2c_ms_graph
                 {
                     Console.Write("Enter command, then press ENTER: ");
                     string decision = Console.ReadLine();
+                    var decisionParams = decision.Split(' ');
+                    decision = decisionParams[0];
+
                     switch (decision.ToLower())
                     {
                         case "1":
@@ -55,10 +58,21 @@ namespace b2c_ms_graph
                             await UserService.CreateUserWithCustomAttribute(graphClient, config.B2cExtensionAppClientId, config.TenantId);
                             break;
                         case "8":
-                            await UserService.ListUsersWithCustomAttribute(graphClient, config.B2cExtensionAppClientId);
+                            var filter = "";
+                            if (decisionParams.Length > 1)
+                            {
+                                filter = decisionParams[1];
+                            }
+                            await UserService.ListUsersWithCustomAttribute(
+                                graphClient, 
+                                config.B2cExtensionAppClientId, 
+                                filter);
                             break;
                         case "9":
                             await UserService.CountUsers(graphClient);
+                            break;
+                        case "10":
+                            await UserService.SetPropertyByUserId(graphClient);
                             break;
                         case "help":
                             Program.PrintCommands();
@@ -99,6 +113,7 @@ namespace b2c_ms_graph
             Console.WriteLine("[7]      Create user with custom attributes and show result");
             Console.WriteLine("[8]      Get all users (one page) with custom attributes");
             Console.WriteLine("[9]      Get the number of useres in the directory");
+            Console.WriteLine("[10]     Change an extension attribute of a specific user");
             Console.WriteLine("[help]   Show available commands");
             Console.WriteLine("[exit]   Exit the program");
             Console.WriteLine("-------------------------");
